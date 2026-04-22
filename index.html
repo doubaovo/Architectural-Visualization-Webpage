@@ -328,7 +328,7 @@ function renderWordCloud(data) {
   }, true);
 }
 
-// 👇 有图片才显示，没有图片直接跳过这个建筑
+// 👇 最终版：只显示有图片的建筑，无图直接过滤
 function renderCards(data) {
   const slider = document.getElementById("cardSlider");
   slider.innerHTML = "";
@@ -338,6 +338,10 @@ function renderCards(data) {
   let validCards = [];
   let loaded = 0;
   const total = data.length;
+  if(total === 0) {
+    slider.innerHTML = "<div style='text-align:center;padding:40px;color:#999'>暂无建筑图片</div>";
+    return;
+  }
 
   data.forEach((b) => {
     const imgPath = `https://doubaovo.github.io/Architectural-Visualization-Webpage/images/${b.城市}_${b.建筑名称}.jpg`;
@@ -346,7 +350,7 @@ function renderCards(data) {
     img.src = imgPath;
 
     img.onload = () => {
-      // ✅ 图片加载成功 → 才创建卡片
+      // ✅ 图片存在 → 加入轮播
       const card = document.createElement("div");
       card.className = "card-item";
       card.innerHTML = `
@@ -363,19 +367,19 @@ function renderCards(data) {
       slider.appendChild(card);
       validCards.push(card);
       loaded++;
-      if (loaded === total) startCarousel();
+      if(loaded === total) startSlide();
     };
 
     img.onerror = () => {
-      // ❌ 图片加载失败 → 直接跳过，不创建卡片
+      // ❌ 图片不存在 → 直接丢弃
       loaded++;
-      if (loaded === total) startCarousel();
+      if(loaded === total) startSlide();
     };
   });
 
-  function startCarousel() {
+  function startSlide(){
     const cards = document.querySelectorAll(".card-item");
-    if (cards.length === 0) {
+    if(cards.length === 0){
       slider.innerHTML = "<div style='text-align:center;padding:40px;color:#999'>暂无建筑图片</div>";
       return;
     }
