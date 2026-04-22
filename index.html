@@ -328,7 +328,6 @@ function renderWordCloud(data) {
   }, true);
 }
 
-// 👇 最终版：只显示有图片的建筑，无图直接过滤
 function renderCards(data) {
   const slider = document.getElementById("cardSlider");
   slider.innerHTML = "";
@@ -344,13 +343,15 @@ function renderCards(data) {
   }
 
   data.forEach((b) => {
-    const imgPath = `https://doubaovo.github.io/Architectural-Visualization-Webpage/images/${b.城市}_${b.建筑名称}.jpg`;
+    // 👇 关键修复：用encodeURIComponent处理中文文件名，避免乱码
+    const cityName = encodeURIComponent(b.城市);
+    const buildingName = encodeURIComponent(b.建筑名称);
+    const imgPath = `/images/${cityName}_${buildingName}.jpg`;
     
     const img = new Image();
     img.src = imgPath;
 
     img.onload = () => {
-      // ✅ 图片存在 → 加入轮播
       const card = document.createElement("div");
       card.className = "card-item";
       card.innerHTML = `
@@ -371,7 +372,6 @@ function renderCards(data) {
     };
 
     img.onerror = () => {
-      // ❌ 图片不存在 → 直接丢弃
       loaded++;
       if(loaded === total) startSlide();
     };
