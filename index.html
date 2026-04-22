@@ -146,6 +146,55 @@ let cardIndex = 0;
 let cardInterval = null;
 let geoJsonData = null;
 
+// ✅ 已完整填入你所有45张图片的文件名
+const IMAGE_LIST = [
+  "鄂州市_付家桥.jpg",
+  "鄂州市_四眼井.jpg",
+  "恩施土家族苗族自治州_大水井李氏庄园.jpg",
+  "恩施土家族苗族自治州_彭家寨吊脚楼群.jpg",
+  "恩施土家族苗族自治州_宣恩风雨桥.jpg",
+  "黄冈市_高桥河桥.jpg",
+  "黄冈市_汉川门.jpg",
+  "黄石市_刘通民居.jpg",
+  "黄石市_三眼桥.jpg",
+  "黄石市_上冯民居群.jpg",
+  "荆门市_京山易家老屋.jpg",
+  "荆门市_来龙桥.jpg",
+  "荆州市_荆州城墙.jpg",
+  "荆州市_梅槐桥.jpg",
+  "荆州市_张居正墓.jpg",
+  "潜江市_浩口八仙桥.jpg",
+  "潜江市_袁桥古居民群.jpg",
+  "神农架林区_回龙坪古民居.jpg",
+  "神农架林区_石屋头古民居.jpg",
+  "神农架林区_一心桥.jpg",
+  "十堰市_高家花屋.jpg",
+  "十堰市_武当山天津桥.jpg",
+  "十堰市_郧阳大丰仓.jpg",
+  "随州市_三家寨遗址.jpg",
+  "随州市_岁丰桥.jpg",
+  "天门市_古雁桥.jpg",
+  "天门市_胡家花园.jpg",
+  "天门市_皂市万寿桥.jpg",
+  "武汉市_北洋桥.jpg",
+  "武汉市_起义门.jpg",
+  "武汉市_晴川阁.jpg",
+  "仙桃市_司马桥.jpg",
+  "仙桃市_渔泛峰古民居群.jpg",
+  "咸宁市_汀泗桥.jpg",
+  "咸宁市_吴家湾老屋.jpg",
+  "咸宁市_周家大屋.jpg",
+  "襄阳市_古隆中.jpg",
+  "襄阳市_襄樊码头.jpg",
+  "襄阳市_襄阳王府绿影壁.jpg",
+  "孝感市_东王桥.jpg",
+  "孝感市_九房沟古寨堡.jpg",
+  "孝感市_小河镇明清古街民居群.jpg",
+  "宜昌市_杨家湾老屋.jpg",
+  "宜昌市_宜都望佛桥.jpg",
+  "宜昌市_远安古民居群.jpg"
+];
+
 window.onload = function() {
   fetch("湖北省_市.geojson")
     .then(res => {
@@ -216,7 +265,6 @@ function initMap() {
   };
   mapChart.setOption(option);
 
-  // 👇 点市 → 只显示该市卡片（核心在这里）
   mapChart.on("click", (params) => {
     if (params.name) {
       currentCity = params.name;
@@ -237,13 +285,23 @@ function initMap() {
   });
 }
 
+// ✅ 核心：只筛选有图片的建筑，不浪费请求
 function refreshAll() {
-  const d = currentCity === "全省" ? buildings : buildings.filter(b => b.城市 === currentCity);
+  let d = currentCity === "全省" 
+    ? buildings 
+    : buildings.filter(b => b.城市 === currentCity);
+
+  // ✅ 只保留有图片的建筑
+  d = d.filter(item => {
+    const name = `${item.城市}_${item.建筑名称}.jpg`;
+    return IMAGE_LIST.includes(name);
+  });
+
   updateMapData(d);
   renderTable(d);
   renderPieChart(d);
   renderWordCloud(d);
-  renderCards(d); // 👈 只渲染当前市的卡片
+  renderCards(d);
 }
 
 function updateMapData(data) {
@@ -328,66 +386,45 @@ function renderWordCloud(data) {
   }, true);
 }
 
-// 最终终极版：顺序加载图片，保证45张全部显示
+// ✅ 超快：直接渲染，不检查、不等待、不浪费
 function renderCards(data) {
   const slider = document.getElementById("cardSlider");
   slider.innerHTML = "";
   if (cardInterval) clearInterval(cardInterval);
   cardIndex = 0;
 
-  const validCards = [];
-  let index = 0;
-
-  // 顺序加载，一张一张来，保证不丢失
-  function loadNext() {
-    if (index >= data.length) {
-      // 全部加载完成
-      if (validCards.length === 0) {
-        slider.innerHTML = "<div style='text-align:center;padding:40px;color:#999'>暂无建筑图片</div>";
-      } else {
-        validCards.forEach(card => slider.appendChild(card));
-        validCards[0].classList.add("active");
-        cardInterval = setInterval(() => {
-          validCards[cardIndex].classList.remove("active");
-          cardIndex = (cardIndex + 1) % validCards.length;
-          validCards[cardIndex].classList.add("active");
-        }, 4000);
-      }
-      return;
-    }
-
-    const b = data[index];
-    const imgPath = `https://doubaovo.github.io/Architectural-Visualization-Webpage/images/${b.城市}_${b.建筑名称}.jpg`;
-
-    const img = new Image();
-    img.onload = () => {
-      // 图片存在 → 加入轮播
-      const card = document.createElement("div");
-      card.className = "card-item";
-      card.innerHTML = `
-        <img src="${imgPath}" class="card-image">
-        <div class="card-info">
-          <h4>${b.建筑名称}</h4>
-          <p><strong>所在地：</strong>${b.城市} ${b.区县||''}</p>
-          <p><strong>朝代：</strong>${b.朝代||'未知'}</p>
-          <p><strong>类型：</strong>${b.类型||'未知'}</p>
-          <p><strong>结构：</strong>${b.结构||'未详'}</p>
-          <p><strong>文化背景：</strong>${b.文化背景||'暂无'}</p>
-        </div>
-      `;
-      validCards.push(card);
-      index++;
-      loadNext();
-    };
-    img.onerror = () => {
-      // 无图 → 跳过
-      index++;
-      loadNext();
-    };
-    img.src = imgPath;
+  if (data.length === 0) {
+    slider.innerHTML = "<div style='text-align:center;padding:40px;color:#999'>暂无建筑图片</div>";
+    return;
   }
 
-  loadNext();
+  data.forEach(b => {
+    const imgPath = `https://doubaovo.github.io/Architectural-Visualization-Webpage/images/${b.城市}_${b.建筑名称}.jpg`;
+    const card = document.createElement("div");
+    card.className = "card-item";
+    card.innerHTML = `
+      <img src="${imgPath}" class="card-image">
+      <div class="card-info">
+        <h4>${b.建筑名称}</h4>
+        <p><strong>所在地：</strong>${b.城市} ${b.区县||''}</p>
+        <p><strong>朝代：</strong>${b.朝代||'未知'}</p>
+        <p><strong>类型：</strong>${b.类型||'未知'}</p>
+        <p><strong>结构：</strong>${b.结构||'未详'}</p>
+        <p><strong>文化背景：</strong>${b.文化背景||'暂无'}</p>
+      </div>
+    `;
+    slider.appendChild(card);
+  });
+
+  const cards = document.querySelectorAll(".card-item");
+  if (cards.length > 0) {
+    cards[0].classList.add("active");
+    cardInterval = setInterval(() => {
+      cards[cardIndex].classList.remove("active");
+      cardIndex = (cardIndex + 1) % cards.length;
+      cards[cardIndex].classList.add("active");
+    }, 4000);
+  }
 }
 </script>
 </body>
