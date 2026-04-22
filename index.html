@@ -328,7 +328,6 @@ function renderWordCloud(data) {
   }, true);
 }
 
-// 最终正确版：按Excel字段 城市_建筑名称 加载图片
 function renderCards(data) {
   const slider = document.getElementById("cardSlider");
   slider.innerHTML = "";
@@ -345,25 +344,20 @@ function renderCards(data) {
   }
 
   data.forEach((b) => {
-    // ✅ 完全按你的Excel列名拼接
-    const 城市 = b.城市 || "";
-    const 建筑名称 = b.建筑名称 || "";
-    
-    // ✅ 图片名称 = 城市_建筑名称.jpg
-    const imgPath = `https://doubaovo.github.io/Architectural-Visualization-Webpage/images/${城市}_${建筑名称}.jpg`;
+    // ✅ 关键修复：加上完整的仓库路径
+    const imgPath = `https://doubaovo.github.io/Architectural-Visualization-Webpage/images/${b.城市}_${b.建筑名称}.jpg`;
 
     const img = new Image();
     img.src = imgPath;
 
     img.onload = () => {
-      // 图片存在 → 显示卡片
       const card = document.createElement("div");
       card.className = "card-item";
       card.innerHTML = `
         <img src="${imgPath}" class="card-image">
         <div class="card-info">
-          <h4>${建筑名称}</h4>
-          <p><strong>所在地：</strong>${城市} ${b.区县||''}</p>
+          <h4>${b.建筑名称}</h4>
+          <p><strong>所在地：</strong>${b.城市} ${b.区县||''}</p>
           <p><strong>朝代：</strong>${b.朝代||'未知'}</p>
           <p><strong>类型：</strong>${b.类型||'未知'}</p>
           <p><strong>结构：</strong>${b.结构||'未详'}</p>
@@ -377,7 +371,6 @@ function renderCards(data) {
     };
 
     img.onerror = () => {
-      // 无图片 → 直接跳过
       loaded++;
       if (loaded === total) startSlide();
     };
