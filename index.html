@@ -328,29 +328,40 @@ function renderWordCloud(data) {
   }, true);
 }
 
+// 最终终极版：顺序加载图片，保证45张全部显示
 function renderCards(data) {
   const slider = document.getElementById("cardSlider");
   slider.innerHTML = "";
   if (cardInterval) clearInterval(cardInterval);
   cardIndex = 0;
 
-  let validCards = [];
-  let loaded = 0;
-  const total = data.length;
+  const validCards = [];
+  let index = 0;
 
-  if (total === 0) {
-    slider.innerHTML = "<div style='text-align:center;padding:40px;color:#999'>暂无建筑图片</div>";
-    return;
-  }
+  // 顺序加载，一张一张来，保证不丢失
+  function loadNext() {
+    if (index >= data.length) {
+      // 全部加载完成
+      if (validCards.length === 0) {
+        slider.innerHTML = "<div style='text-align:center;padding:40px;color:#999'>暂无建筑图片</div>";
+      } else {
+        validCards.forEach(card => slider.appendChild(card));
+        validCards[0].classList.add("active");
+        cardInterval = setInterval(() => {
+          validCards[cardIndex].classList.remove("active");
+          cardIndex = (cardIndex + 1) % validCards.length;
+          validCards[cardIndex].classList.add("active");
+        }, 4000);
+      }
+      return;
+    }
 
-  data.forEach((b) => {
-    // ✅ 关键修复：加上完整的仓库路径
+    const b = data[index];
     const imgPath = `https://doubaovo.github.io/Architectural-Visualization-Webpage/images/${b.城市}_${b.建筑名称}.jpg`;
 
     const img = new Image();
-    img.src = imgPath;
-
     img.onload = () => {
+      // 图片存在 → 加入轮播
       const card = document.createElement("div");
       card.className = "card-item";
       card.innerHTML = `
@@ -364,31 +375,19 @@ function renderCards(data) {
           <p><strong>文化背景：</strong>${b.文化背景||'暂无'}</p>
         </div>
       `;
-      slider.appendChild(card);
       validCards.push(card);
-      loaded++;
-      if (loaded === total) startSlide();
+      index++;
+      loadNext();
     };
-
     img.onerror = () => {
-      loaded++;
-      if (loaded === total) startSlide();
+      // 无图 → 跳过
+      index++;
+      loadNext();
     };
-  });
-
-  function startSlide() {
-    const cards = document.querySelectorAll(".card-item");
-    if (cards.length === 0) {
-      slider.innerHTML = "<div style='text-align:center;padding:40px;color:#999'>暂无建筑图片</div>";
-      return;
-    }
-    cards[0].classList.add("active");
-    cardInterval = setInterval(() => {
-      cards[cardIndex].classList.remove("active");
-      cardIndex = (cardIndex + 1) % cards.length;
-      cards[cardIndex].classList.add("active");
-    }, 4000);
+    img.src = imgPath;
   }
+
+  loadNext();
 }
 </script>
 </body>
