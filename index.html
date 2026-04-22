@@ -328,39 +328,64 @@ function renderWordCloud(data) {
   }, true);
 }
 
-// 👇 只渲染当前选中市的卡片
+// 👇 有图片才显示，没有图片直接跳过这个建筑
 function renderCards(data) {
   const slider = document.getElementById("cardSlider");
   slider.innerHTML = "";
   if (cardInterval) clearInterval(cardInterval);
   cardIndex = 0;
 
-  data.forEach((b, idx) => {
+  let validCards = [];
+  let loaded = 0;
+  const total = data.length;
+
+  data.forEach((b) => {
     const imgPath = `https://doubaovo.github.io/Architectural-Visualization-Webpage/images/${b.城市}_${b.建筑名称}.jpg`;
-    const card = document.createElement("div");
-    card.className = "card-item";
-    card.innerHTML = `
-      <img src="${imgPath}" class="card-image">
-      <div class="card-info">
-        <h4>${b.建筑名称}</h4>
-        <p><strong>所在地：</strong>${b.城市} ${b.区县||''}</p>
-        <p><strong>朝代：</strong>${b.朝代||'未知'}</p>
-        <p><strong>类型：</strong>${b.类型||'未知'}</p>
-        <p><strong>结构：</strong>${b.结构||'未详'}</p>
-        <p><strong>文化背景：</strong>${b.文化背景||'暂无'}</p>
-      </div>
-    `;
-    slider.appendChild(card);
+    
+    const img = new Image();
+    img.src = imgPath;
+
+    img.onload = () => {
+      // ✅ 图片加载成功 → 才创建卡片
+      const card = document.createElement("div");
+      card.className = "card-item";
+      card.innerHTML = `
+        <img src="${imgPath}" class="card-image">
+        <div class="card-info">
+          <h4>${b.建筑名称}</h4>
+          <p><strong>所在地：</strong>${b.城市} ${b.区县||''}</p>
+          <p><strong>朝代：</strong>${b.朝代||'未知'}</p>
+          <p><strong>类型：</strong>${b.类型||'未知'}</p>
+          <p><strong>结构：</strong>${b.结构||'未详'}</p>
+          <p><strong>文化背景：</strong>${b.文化背景||'暂无'}</p>
+        </div>
+      `;
+      slider.appendChild(card);
+      validCards.push(card);
+      loaded++;
+      if (loaded === total) startCarousel();
+    };
+
+    img.onerror = () => {
+      // ❌ 图片加载失败 → 直接跳过，不创建卡片
+      loaded++;
+      if (loaded === total) startCarousel();
+    };
   });
 
-  const cards = document.querySelectorAll(".card-item");
-  if (cards.length > 0) cards[0].classList.add("active");
-  cardInterval = setInterval(() => {
-    if (cards.length <= 1) return;
-    cards[cardIndex].classList.remove("active");
-    cardIndex = (cardIndex + 1) % cards.length;
-    cards[cardIndex].classList.add("active");
-  }, 4000);
+  function startCarousel() {
+    const cards = document.querySelectorAll(".card-item");
+    if (cards.length === 0) {
+      slider.innerHTML = "<div style='text-align:center;padding:40px;color:#999'>暂无建筑图片</div>";
+      return;
+    }
+    cards[0].classList.add("active");
+    cardInterval = setInterval(() => {
+      cards[cardIndex].classList.remove("active");
+      cardIndex = (cardIndex + 1) % cards.length;
+      cards[cardIndex].classList.add("active");
+    }, 4000);
+  }
 }
 </script>
 </body>
