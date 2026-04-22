@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>湖北古建筑数据可视化交互系统</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;font-family:"Microsoft YaHei",sans-serif}
+  body{background:#F0F7FC;padding:20px}
+  .container{max-width:1600px;margin:0 auto}
+  .title{text-align:center;margin-bottom:20px}
+
+  .main{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:20px;
+  }
+  .map-box{background:#F9FCFF;border-radius:12px;padding:20px;box-shadow:0 2px 10px rgba(31,59,112,0.08)}
+  .map-box h3{margin-bottom:10px;color:#1F3B70}
+  
+  #map{width:100%;height:600px}
+
+  .charts{
+    display:grid;
+    grid-template-columns: 1fr;
+    gap:15px;
+  }
+  .chart-card{background:#F9FCFF;border-radius:12px;padding:20px;box-shadow:0 2px 10px rgba(31,59,112,0.08)}
+  .chart-card h3{margin-bottom:10px;color:#1F3B70}
+  #wordCloud{width:100%!important;height:400px!important}
+  #chartType{width:100%!important;height:400px!important}
+
+  .table-card{margin-top:20px;background:#F9FCFF;border-radius:12px;padding:20px;box-shadow:0 2px 10px rgba(31,59,112,0.08)}
+  table{width:100%;border-collapse:collapse}
+  th,td{padding:10px;text-align:left;border-bottom:1px solid #A9C9E2}
+  th{background:#6D9BBC;color:#F9FCFF}
+
+  .import-box{text-align:center;margin-bottom:15px}
+  #importBtn{padding:10px 24px;background:#385A8A;color:white;border:none;border-radius:8px;cursor:pointer}
+  #fileInput{display:none}
+
+  .map-note{margin-top:8px;font-size:12px;color:#666;text-align:center}
+
+  .card-container{
+    background:#F9FCFF;
+    border-radius:12px;
+    padding:20px;
+    box-shadow:0 2px 10px rgba(31,59,112,0.08);
+    height:100%;
+    overflow:hidden;
+  }
+  .card-container h3{margin-bottom:15px;color:#1F3B70}
+  .card-slider{
+    position:relative;
+    height:600px;
+    overflow:hidden;
+  }
+  .card-item{
+    position:absolute;
+    width:100%;
+    height:100%;
+    opacity:0;
+    transition:opacity 1s ease-in-out, transform 1s ease-in-out;
+    display:flex;
+    flex-direction:column;
+    transform: translateY(100%);
+  }
+  .card-item.active{
+    opacity:1;
+    transform: translateY(0);
+  }
+  .card-image{
+    width:100%;
+    height:350px;
+    object-fit:cover;
+    border-radius:8px;
+    margin-bottom:10px;
+  }
+  .card-info{
+    padding:8px;
+    background:#DFEDF8;
+    border-radius:8px;
+    flex:1;
+    overflow-y:auto;
+    font-size:13px;
+  }
+  .card-info h4{margin-bottom:8px;color:#1F3B70}
+  .card-info p{margin-bottom:5px;font-size:14px;color:#385A8A}
+</style>
+</head>
+
+<body>
+<div class="container">
+  <div class="title">
+    <h1>湖北古建筑数据可视化交互系统</h1>
+  </div>
+
+  <div class="main">
+    <div class="map-box">
+      <h3>湖北省建筑分布</h3>
+      <div id="map"></div>
+      <div class="map-note">审图号：GS（2024）0650号 | 来源：国家地理信息公共服务平台（天地图）</div>
+      <div style="margin-top: 15px; text-align: center;">
+        <button id="backToAllBtn" style="padding: 8px 20px; background: #385A8A; color: white; border: none; border-radius: 6px; cursor: pointer; display: none;">返回全省</button>
+      </div>
+      
+      <div class="chart-card" style="margin-top: 20px;">
+        <h3>结构高频词云</h3>
+        <div id="wordCloud"></div>
+      </div>
+    </div>
+
+    <div class="charts">
+      <div class="chart-card">
+        <h3>建筑类型分布</h3>
+        <canvas id="chartType"></canvas>
+      </div>
+      
+      <div class="card-container">
+        <h3>湖北古建筑名片</h3>
+        <div class="card-slider" id="cardSlider">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="table-card">
+    <h3>建筑详细信息</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>建筑名称</th><th>所在地</th><th>朝代</th><th>类型</th><th>结构</th><th>文化背景</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts-wordcloud/dist/echarts-wordcloud.min.js"></script>
+<script>
+let buildings = [];
+let currentCity = "全省";
+let mapChart = null;
+let wordChart = null;
+let pieChart = null;
+let cardIndex = 0;
+let cardInterval = null;
+let geoJsonData = null;
+
+window.onload = function() {
+  fetch("湖北省_市.geojson")
+    .then(res => {
+      if (!res.ok) throw new Error("GeoJSON加载失败");
+      return res.json();
+    })
+    .then(geoJson => {
+      geoJsonData = geoJson;
+      echarts.registerMap("湖北", geoJsonData);
+      return fetch('总建筑数据_统一版.xlsx');
+    })
+    .then(response => response.arrayBuffer())
+    .then(data => {
+      const wb = XLSX.read(data, { type: "array" });
+      buildings = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+      initMap();
+      refreshAll();
+    })
+    .catch(error => {
+      console.error('加载失败:', error);
+      alert("数据加载失败，请检查文件是否存在：湖北省_市.geojson、总建筑数据_统一版.xlsx");
+    });
+};
+
+function initMap() {
+  mapChart = echarts.init(document.getElementById("map"));
+  const option = {
+    tooltip: { 
+      trigger: "item",
+      formatter: "{b}<br/>建筑数量：{c}"
+    },
+    visualMap: {
+      min: 0,
+      max: 50,
+      left: "left",
+      bottom: "10%",
+      text: ['高', '低'],
+      calculable: true,
+      inRange: {
+        color: ['#F0F7FC', '#6D9BBC', '#1F3B70']
+      }
+    },
+    series: [{
+      type: "map",
+      map: "湖北",
+      roam: true,
+      zoom: 1.0,
+      layoutCenter: ['50%', '50%'],
+      layoutSize: '90%',
+      scaleLimit: { min: 0.8, max: 3 },
+      label: { 
+        show: true, 
+        fontSize: 12,
+        color: "#333"
+      },
+      itemStyle: { 
+        borderColor: "#fff", 
+        borderWidth: 1,
+        areaColor: "#F0F7FC"
+      },
+      emphasis: { 
+        itemStyle: { 
+          areaColor: "#6D9BBC"
+        } 
+      },
+      data: []
+    }]
+  };
+  mapChart.setOption(option);
+
+  mapChart.on("click", (params) => {
+    if (params.name) {
+      currentCity = params.name;
+      document.getElementById("backToAllBtn").style.display = "inline-block";
+      refreshAll();
+    }
+  });
+
+  document.getElementById("backToAllBtn").onclick = function() {
+    currentCity = "全省";
+    this.style.display = "none";
+    refreshAll();
+  };
+  
+  window.addEventListener("resize", () => {
+    mapChart.resize();
+    if (wordChart) wordChart.resize();
+  });
+}
+
+function refreshAll() {
+  const d = currentCity === "全省" ? buildings : buildings.filter(b => b.城市 === currentCity);
+  updateMapData(d);
+  renderTable(d);
+  renderPieChart(d);
+  renderWordCloud(d);
+  renderCards(d);
+}
+
+function updateMapData(data) {
+  if (!mapChart) return;
+  const cityCount = {};
+  data.forEach(b => {
+    const city = b.城市 || "未知";
+    cityCount[city] = (cityCount[city] || 0) + 1;
+  });
+  const mapData = [];
+  for (let city in cityCount) {
+    mapData.push({ name: city, value: cityCount[city] });
+  }
+  mapChart.setOption({
+    series: [{ data: mapData }]
+  });
+}
+
+function renderTable(data) {
+  const tb = document.getElementById("tableBody");
+  tb.innerHTML = "";
+  data.forEach(b => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${b.建筑名称 || '-'}</td>
+      <td>${b.城市 || '-'} ${b.区县 || ''}</td>
+      <td>${b.朝代 || '-'}</td>
+      <td>${b.类型 || '-'}</td>
+      <td>${b.结构 || '-'}</td>
+      <td>${b.文化背景 || '-'}</td>
+    `;
+    tb.appendChild(tr);
+  });
+}
+
+function renderPieChart(data) {
+  const type = {};
+  data.forEach(b => {
+    const t = b.类型 || "未知类型";
+    type[t] = (type[t] || 0) + 1;
+  });
+  const ctx = document.getElementById("chartType").getContext("2d");
+  if (pieChart) pieChart.destroy();
+  pieChart = new Chart(ctx, {
+    type: "pie",
+    data: {
+      labels: Object.keys(type),
+      datasets: [{
+        data: Object.values(type),
+        backgroundColor: ['#1F3B70','#385A8A','#527BA3','#6D9BBC','#8CB4D2','#A9C9E2','#C6DDF0','#DFEDF8']
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'right' }
+      }
+    }
+  });
+}
+
+function renderWordCloud(data) {
+  const count = {};
+  data.forEach(b => {
+    const s = (b.结构 || "").trim();
+    if (s && s !== "未详" && s !== "未知") {
+      count[s] = (count[s] || 0) + 1;
+    }
+  });
+  const list = Object.keys(count).map(k => ({ name: k, value: count[k] }));
+  if (!wordChart) {
+    wordChart = echarts.init(document.getElementById("wordCloud"));
+  }
+  wordChart.setOption({
+    tooltip: {},
+    series: [{
+      type: "wordCloud",
+      sizeRange: [14, 50],
+      rotationRange: [0, 0],
+      gridSize: 10,
+      textStyle: {
+        color() {
+          const cs = ['#1F3B70','#385A8A','#527BA3','#6D9BBC','#8CB4D2'];
+          return cs[Math.floor(Math.random() * cs.length)];
+        }
+      },
+      data: list
+    }]
+  }, true);
+}
+
+function renderCards(data) {
+  const slider = document.getElementById("cardSlider");
+  slider.innerHTML = "";
+  if (data.length === 0) {
+    slider.innerHTML = "<div style='text-align:center;padding:40px;color:#999'>暂无数据</div>";
+    return;
+  }
+  let validCards = [];
+  let loadedCount = 0;
+  data.forEach((b, idx) => {
+    const imgPath = `图片/${b.城市}_${b.建筑名称}.jpg`;
+    const img = new Image();
+    img.src = imgPath;
+    img.onload = () => {
+      const card = document.createElement("div");
+      card.className = "card-item";
+      card.innerHTML = `
+        <img src="${imgPath}" class="card-image">
+        <div class="card-info">
+          <h4>${b.建筑名称}</h4>
+          <p><strong>所在地：</strong>${b.城市} ${b.区县||''}</p>
+          <p><strong>朝代：</strong>${b.朝代||'未知'}</p>
+          <p><strong>类型：</strong>${b.类型||'未知'}</p>
+          <p><strong>结构：</strong>${b.结构||'未详'}</p>
+          <p><strong>文化背景：</strong>${b.文化背景||'暂无'}</p>
+        </div>
+      `;
+      slider.appendChild(card);
+      validCards.push(card);
+      loadedCount++;
+      if (loadedCount === 1) {
+        card.classList.add("active");
+      }
+    };
+    img.onerror = () => { loadedCount++; };
+  });
+
+  if (cardInterval) clearInterval(cardInterval);
+  cardIndex = 0;
+  cardInterval = setInterval(() => {
+    const cards = slider.querySelectorAll(".card-item");
+    if (cards.length <= 1) return;
+    cards[cardIndex].classList.remove("active");
+    cardIndex = (cardIndex + 1) % cards.length;
+    cards[cardIndex].classList.add("active");
+  }, 4000);
+}
+</script>
+</body>
+</html>
