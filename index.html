@@ -328,6 +328,7 @@ function renderWordCloud(data) {
   }, true);
 }
 
+// 最终正确版：按Excel字段 城市_建筑名称 加载图片
 function renderCards(data) {
   const slider = document.getElementById("cardSlider");
   slider.innerHTML = "";
@@ -337,28 +338,32 @@ function renderCards(data) {
   let validCards = [];
   let loaded = 0;
   const total = data.length;
-  if(total === 0) {
+
+  if (total === 0) {
     slider.innerHTML = "<div style='text-align:center;padding:40px;color:#999'>暂无建筑图片</div>";
     return;
   }
 
   data.forEach((b) => {
-    // 👇 关键修复：用encodeURIComponent处理中文文件名，避免乱码
-    const cityName = encodeURIComponent(b.城市);
-    const buildingName = encodeURIComponent(b.建筑名称);
-    const imgPath = `/images/${cityName}_${buildingName}.jpg`;
+    // ✅ 完全按你的Excel列名拼接
+    const 城市 = b.城市 || "";
+    const 建筑名称 = b.建筑名称 || "";
     
+    // ✅ 图片名称 = 城市_建筑名称.jpg
+    const imgPath = `https://doubaovo.github.io/Architectural-Visualization-Webpage/images/${城市}_${建筑名称}.jpg`;
+
     const img = new Image();
     img.src = imgPath;
 
     img.onload = () => {
+      // 图片存在 → 显示卡片
       const card = document.createElement("div");
       card.className = "card-item";
       card.innerHTML = `
         <img src="${imgPath}" class="card-image">
         <div class="card-info">
-          <h4>${b.建筑名称}</h4>
-          <p><strong>所在地：</strong>${b.城市} ${b.区县||''}</p>
+          <h4>${建筑名称}</h4>
+          <p><strong>所在地：</strong>${城市} ${b.区县||''}</p>
           <p><strong>朝代：</strong>${b.朝代||'未知'}</p>
           <p><strong>类型：</strong>${b.类型||'未知'}</p>
           <p><strong>结构：</strong>${b.结构||'未详'}</p>
@@ -368,18 +373,19 @@ function renderCards(data) {
       slider.appendChild(card);
       validCards.push(card);
       loaded++;
-      if(loaded === total) startSlide();
+      if (loaded === total) startSlide();
     };
 
     img.onerror = () => {
+      // 无图片 → 直接跳过
       loaded++;
-      if(loaded === total) startSlide();
+      if (loaded === total) startSlide();
     };
   });
 
-  function startSlide(){
+  function startSlide() {
     const cards = document.querySelectorAll(".card-item");
-    if(cards.length === 0){
+    if (cards.length === 0) {
       slider.innerHTML = "<div style='text-align:center;padding:40px;color:#999'>暂无建筑图片</div>";
       return;
     }
