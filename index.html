@@ -350,7 +350,7 @@ function renderCards(data) {
   let validCards = [];
   let loadedCount = 0;
   data.forEach((b, idx) => {
-    const imgPath = `images/${b.城市}_${b.建筑名称}.jpg`;
+    const imgPath = `./images/${b.城市}_${b.建筑名称}.jpg`;
     const img = new Image();
     img.src = imgPath;
     img.onload = () => {
