@@ -146,7 +146,7 @@ let cardIndex = 0;
 let cardInterval = null;
 let geoJsonData = null;
 
-// ✅ 已完整填入你所有45张图片的文件名
+// 所有有图片的建筑名单
 const IMAGE_LIST = [
   "鄂州市_付家桥.jpg",
   "鄂州市_四眼井.jpg",
@@ -285,23 +285,26 @@ function initMap() {
   });
 }
 
-// ✅ 核心：只筛选有图片的建筑，不浪费请求
+// ✅ 核心分离：
+// 表格 = 全部数据
+// 名片 = 只有有图数据
 function refreshAll() {
-  let d = currentCity === "全省" 
+  const allData = currentCity === "全省" 
     ? buildings 
     : buildings.filter(b => b.城市 === currentCity);
 
-  // ✅ 只保留有图片的建筑
-  d = d.filter(item => {
+  // 👇 表格显示全部
+  renderTable(allData);
+  updateMapData(allData);
+  renderPieChart(allData);
+  renderWordCloud(allData);
+
+  // 👇 名片只显示有图片的
+  const cardData = allData.filter(item => {
     const name = `${item.城市}_${item.建筑名称}.jpg`;
     return IMAGE_LIST.includes(name);
   });
-
-  updateMapData(d);
-  renderTable(d);
-  renderPieChart(d);
-  renderWordCloud(d);
-  renderCards(d);
+  renderCards(cardData);
 }
 
 function updateMapData(data) {
@@ -318,6 +321,7 @@ function updateMapData(data) {
   mapChart.setOption({ series: [{ data: mapData }] });
 }
 
+// ✅ 表格：显示全部建筑
 function renderTable(data) {
   const tb = document.getElementById("tableBody");
   tb.innerHTML = "";
@@ -386,7 +390,7 @@ function renderWordCloud(data) {
   }, true);
 }
 
-// ✅ 超快：直接渲染，不检查、不等待、不浪费
+// ✅ 名片：只渲染有图，超快不浪费
 function renderCards(data) {
   const slider = document.getElementById("cardSlider");
   slider.innerHTML = "";
