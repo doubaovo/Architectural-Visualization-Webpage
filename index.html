@@ -164,7 +164,7 @@ const IMAGE_LIST = [
   "荆州市_梅槐桥.jpg",
   "荆州市_张居正墓.jpg",
   "潜江市_浩口八仙桥.jpg",
-  "潜江市_袁桥古居民群.jpg",
+  "潜江市_袁桥古民居群.jpg",
   "神农架林区_回龙坪古民居.jpg",
   "神农架林区_石屋头古民居.jpg",
   "神农架林区_一心桥.jpg",
@@ -285,19 +285,21 @@ function initMap() {
   });
 }
 
-
+// ✅ 核心分离：
+// 表格 = 全部数据
+// 名片 = 只有有图数据
 function refreshAll() {
   const allData = currentCity === "全省" 
     ? buildings 
     : buildings.filter(b => b.城市 === currentCity);
 
-
+  // 👇 表格显示全部
   renderTable(allData);
   updateMapData(allData);
   renderPieChart(allData);
   renderWordCloud(allData);
 
-
+  // 👇 名片只显示有图片的
   const cardData = allData.filter(item => {
     const name = `${item.城市}_${item.建筑名称}.jpg`;
     return IMAGE_LIST.includes(name);
@@ -319,7 +321,7 @@ function updateMapData(data) {
   mapChart.setOption({ series: [{ data: mapData }] });
 }
 
-
+// ✅ 表格：显示全部建筑
 function renderTable(data) {
   const tb = document.getElementById("tableBody");
   tb.innerHTML = "";
@@ -388,7 +390,7 @@ function renderWordCloud(data) {
   }, true);
 }
 
-
+// ✅ 名片：只渲染有图，超快不浪费
 function renderCards(data) {
   const slider = document.getElementById("cardSlider");
   slider.innerHTML = "";
